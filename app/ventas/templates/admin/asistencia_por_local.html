@@ -1,0 +1,243 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% load admin_list %}
+{% load crispy_forms_tags %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% static 'libs/flatpickr/flatpickr.min.css' %}">
+    <script src="{% static 'libs/flatpickr/flatpickr.js' %}"></script>
+    <script src="{% static 'libs/flatpickr/flatpickr.min.css' %}"></script>
+
+    <style>
+        .table tr {
+            background-color: white;
+        }
+
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+
+        .nav-tabs li a {
+            color: #555;
+            font-weight: bold;
+        }
+
+        .nav-tabs li.active a {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #337ab7;
+        }
+
+        .nav-tabs > li.active > a,
+        .nav-tabs > li.active > a:hover,
+        .nav-tabs > li.active > a:focus {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #337ab7;
+        }
+
+        #loading-indicator {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        }
+
+        #loading-indicator:before {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            margin: -30px 0 0 -30px;
+            border-radius: 50%;
+            border: 6px solid #fff;
+            border-color: #fff transparent #fff transparent;
+            animation: loading 1.2s linear infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+{% endblock %}
+{% block title %}Locals{% endblock %}
+
+{% block content %}
+    <div id="loading-indicator"></div>
+    <div class="container-fluid">
+
+        <h1>Asistencia diarias para {{ local.nombre }}</h1>
+
+
+        <div class=" col-3 mb-4">
+            <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#crear-venta-modal">
+                Registrar Asistencia diaria
+                <input hidden id="ultima_fecha" value="{{ ultima_fecha }}">
+            </a>
+        </div>
+        {#        <a href="{% url 'descargar_excel' %}?local_id={{ local.id }}" class="btn btn-danger">#}
+        {#            <input disabled hidden value="{{ local.id }}" id="local_id">#}
+        {#            Descargar Excel#}
+        {#        </a>#}
+        <!-- Modal -->
+        <div class="modal fade" id="crear-venta-modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">Registrar venta diaria</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="col-m-8">
+
+
+                            <div class="p-4 p-md-5">
+
+                                {% csrf_token %}
+                                <form method="post">
+                                    {% csrf_token %}
+                                    {% if form.errors %}
+                                        <div class="alert alert-danger">
+                                            <ul>
+                                                {% for field, errors in form.errors.items %}
+                                                    {% for error in errors %}
+                                                        <li>{{ field }}: {{ error }}</li>
+                                                    {% endfor %}
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="form-group col-md-auto">
+                                        <label for="{{ form.trabajador.id_for_label }}">Trabajador:</label>
+                                        {{ form.trabajador }}
+                                    </div>
+
+                                    <div class="form-group col-md-auto">
+
+                                        {{ form.fecha }}
+                                    </div>
+                                    {{ form.local }}
+
+
+                                    <div class="me-auto">
+                                        <input type="submit" value="Guardar" class="btn btn-primary ">
+                                        <a class="btn btn-warning btn-cancelar">Cancelar</a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="col-m-4">
+                            <div id="contenedor-pastel"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        {#        <a class="btn btn-warning"#}
+        {#           id="boton-eliminar-ventas">#}
+        {#            Eliminar Todas las Ventas#}
+        {#        </a>#}
+        <div class="row mt-5"></div>
+        <ul class="nav nav-tabs mt-5">
+
+            {% for fecha, asistencias in asistencia_por_fecha.items %}
+
+                <li {% if forloop.first %}class="active"{% endif %}>
+                    <a data-toggle="tab" href="#tab-{{ fecha|date:'Ymd' }}"
+                       id="{{ fecha|date:'d/m/Y' }}">{{ fecha|date:'d/m/Y' }}</a>
+                </li>
+
+            {% endfor %}
+        </ul>
+
+        <div class="tab-content">
+            {% for fecha, asistencias in asistencia_por_fecha.items %}
+                <input id="fecha_n" hidden value="{{ fecha }}">
+
+                <input id="{{ asistencias.id }}" hidden value="{{ asistencias.id }}">
+                <div id="tab-{{ fecha|date:'Ymd' }}" class="tab-pane {% if forloop.first %}active{% endif %}">
+                    <table class="table" id="tab-{{ fecha|date:'y-m-d' }}">
+                        <thead>
+                        <tr>
+
+                            <th class="text-center">Fecha</th>
+                            <th class="text-center">Trabajador</th>
+                            <th colspan="13"></th>
+
+
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for asistencia in asistencias.0 %}
+                            <tr data-asistencia-id="{{ asistencia.id }}">
+                                <td class="text-center">{{ asistencia.fecha }}</td>
+                                <td class="text-center">{{ asistencia.trabajador.nombre }}</td>
+                                <td class="text-center">
+                                <td>
+                                    {#                                    <a class="btn btn-warning btn-sm ">#}
+                                    {#                                        <span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>#}
+                                    {#                                    </a>#}
+                                    <a class="btn btn-danger btn-sm eliminar-asistencia-btn">
+                                        <span class="glyphicon glyphicon-trash " aria-hidden="true"></span>
+                                    </a>
+                                </td>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                        <tfoot>
+
+                        <tr>
+                            <td colspan="13"></td>
+                        </tr>
+                        </tfoot>
+                    </table>
+                    <table>
+                        <thead class="table">
+                        <tr>
+                            <th class="text-center" colspan="6">Cantidad de Trabajadores</th>
+                            <th class="text-center">{{ asistencias.1 }} / {{ cant_trabajadores }}</th>
+                        </tr>
+                        </thead>
+
+                    </table>
+
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% block extrajs %}
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="{% static 'app/asistencia/asistencia.js' %}"></script>
+
+        <!-- Cargar archivos de JavaScript y CSS de Select2 -->
+
+    {% endblock %}
+
+{% endblock %}
+
+

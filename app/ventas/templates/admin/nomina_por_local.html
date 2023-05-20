@@ -1,0 +1,188 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% load admin_list %}
+{% load crispy_forms_tags %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style>
+        .table tr {
+            background-color: white;
+        }
+
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+
+        .nav-tabs li a {
+            color: #555;
+            font-weight: bold;
+        }
+
+        .nav-tabs li.active a {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #337ab7;
+        }
+
+        .nav-tabs > li.active > a,
+        .nav-tabs > li.active > a:hover,
+        .nav-tabs > li.active > a:focus {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #337ab7;
+        }
+
+        #loading-indicator {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        }
+
+        #loading-indicator:before {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            margin: -30px 0 0 -30px;
+            border-radius: 50%;
+            border: 6px solid #fff;
+            border-color: #fff transparent #fff transparent;
+            animation: loading 1.2s linear infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+{% endblock %}
+{% block title %}Locals{% endblock %}
+
+{% block content %}
+    <div id="loading-indicator"></div>
+    <div class="container-fluid">
+
+        <h1>Nomina {{ local.nombre }}</h1>
+        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{  local.id }}&trabajadores_salarios={{ trabajadores_salarios }}" class="btn btn-danger">
+            <input disabled hidden value="{{ local.id }}" id="local_id">
+            Descargar Excel
+        </a>
+
+        <div class="row mt-5"></div>
+        <ul class="nav nav-tabs mt-5">
+
+            {% for fecha in fechas %}
+                <li {% if forloop.first %}class="active"{% endif %}>
+                    <a data-toggle="tab" href="#tab-{{ fecha|date:'Ymd' }}"
+                       id="{{ fecha|date:'d/m/Y' }}">{{ fecha|date:'d/m/Y' }}</a>
+                </li>
+
+            {% endfor %}
+        </ul>
+
+        <div class="tab-content">
+            {% for fecha, data in datos_por_fecha.items %}
+                <input id="fecha_n" hidden value="{{ fecha }}">
+
+                <input id="{{ asistencias.id }}" hidden value="{{ asistencias.id }}">
+                <div id="tab-{{ fecha|date:'Ymd' }}" class="tab-pane {% if forloop.first %}active{% endif %}">
+                    <table class="table" id="tab-{{ fecha|date:'y-m-d' }}">
+                        <thead>
+                        <tr>
+
+
+                            <th class="text-center">Trabajador</th>
+                            <th class="text-center">Salario Básico</th>
+                            <th class="text-center">Salario devengado al dia</th>
+                            <th class="text-center">Ganancia por Ventas al dia</th>
+                            <th colspan="13"></th>
+
+
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for datos in data.1 %}
+                            <tr data-asistencia-id="{{ asistencia.id }}">
+                            <td class="text-center">{{ datos }}</td>
+                            <td class="text-center">{{ datos.trabajador.salario_basico }}</td>
+                            <td class="text-center">{{ datos.salario_total }}</td>
+
+                            <td class="text-center">{{ data.2 }}</td>
+                        {% endfor %}
+                        </tbody>
+                        <tfoot>
+
+                        <tr>
+                            <td colspan="13"></td>
+                        </tr>
+                        </tfoot>
+                    </table>
+
+
+                </div>
+            {% endfor %}
+
+            <table class="table">
+                <thead>
+                <tr>
+                    <th></th>
+                    <th>Trabajador</th>
+                    <th class="text-center">Salario a pagar</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for foo in trabajadores_salarios %}
+
+                    <tr>
+                        <td></td>
+                        <td>{{ foo.trabajador__nombre }}</td>
+                        <td class="text-center">{{ foo.total_salario }}</td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+
+
+            <table>
+                <thead class="table">
+                <tr>
+                    <th class="text-center" colspan="6">Cantidad de Trabajadores</th>
+                    <th class="text-center">{{ asistencias.1 }} / {{ cant_trabajadores }}</th>
+                </tr>
+                </thead>
+
+            </table>
+        </div>
+    </div>
+
+    {% block extrajs %}
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+
+        <!-- Cargar archivos de JavaScript y CSS de Select2 -->
+
+    {% endblock %}
+
+{% endblock %}
+
+

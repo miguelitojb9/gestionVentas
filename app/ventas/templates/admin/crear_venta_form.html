@@ -1,0 +1,15 @@
+{% load static %}
+{% load crispy_forms_tags %}
+
+
+<form method="post" id="new-venta">
+    {% csrf_token %}
+    <div class="form-group mx-auto col-3">
+        {{ form|crispy }}
+    </div>
+
+    <div>
+        <input type="submit" value="Guardar" class="btn btn-primary ">
+        <a class="btn btn-warning btn-cancelar">Cancelar</a>
+    </div>
+</form>
