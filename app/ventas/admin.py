@@ -15,6 +15,11 @@ from django.shortcuts import render
 from datetime import datetime, timedelta
 from django.db.models import ExpressionWrapper, Sum, F, FloatField
 from django.db.models.functions import Coalesce
+from decimal import Decimal
+from django.db.models import Case, When, ExpressionWrapper, F, FloatField, Sum, Subquery, OuterRef
+
+
+
 
 
 class VentaDiariaInline(admin.TabularInline):
@@ -198,38 +203,73 @@ class LocalAdmin(admin.ModelAdmin):
 
         # recopilar los datos de ventas diarias, asistencias, y totales de importe para cada fecha y local
         datos_por_fecha = {}
+        cant_trabajadores = {}
+        trabajadores_salarios = {}
+        ganancia_fecha = {}
         for fecha in fechas:
             datos_por_fecha[fecha] = {}
             venta_diaria = VentaDiaria.objects.filter(fecha=fecha, local=local).select_related('local', 'producto')
             total_importe_ventas = venta_diaria.aggregate(total_ventas=
                                                           Sum(F('cantidad_venta') * F('precio_venta_producto')))[
                 'total_ventas']
-            total_importe_costo = venta_diaria.aggregate(total_costo=
-                                                         Sum(F('cantidad_venta') * F('precio_costo_producto')))[
-                'total_costo']
-            ganancia = (total_importe_ventas - total_importe_costo)
+            importe_venta_elaborados = venta_diaria.filter(producto__categoria=1).aggregate(total_ventas=
+                                                          Sum(F('cantidad_venta') * F('precio_venta_producto')))[
+                'total_ventas']
+
+            importe_venta_no_elaborados = venta_diaria.filter(producto__categoria=2).aggregate(total_ventas=
+                                                          Sum(F('cantidad_venta') * F('precio_venta_producto')))[
+                'total_ventas']
+            ganancia = total_importe_ventas
+
+            cantidad_trabajadores_dia = Asistencia.objects.filter(fecha=fecha, local=local).select_related('trabajador').distinct().count()
+
             if ganancia > 15000:
-                ganancia = 0.06 * ganancia
+                ganancia -= 15000
+
+                ganancia = ganancia * Decimal(str('0.08'))
+                ganancia /= cantidad_trabajadores_dia
+
             else:
                 ganancia = 0
+            ganancia_fecha[fecha] = ganancia
+
+
             asistencias = Asistencia.objects.filter(fecha=fecha, local=local).select_related('trabajador').annotate(
                 salario_total=ExpressionWrapper(F('trabajador__salario_basico') + ganancia,
                                                 output_field=FloatField()),
-
             )
-            trabajadores_salarios = Asistencia.objects.filter(local=local).values('trabajador__nombre').annotate(
-                salario_total=ExpressionWrapper(F('trabajador__salario_basico') + ganancia, output_field=FloatField())
-            ).annotate(
-                total_salario=Coalesce(Sum('salario_total'), 0, output_field=FloatField())
-            ).values('trabajador__nombre', 'total_salario')
+            trabajadores_salarios = Asistencia.objects.filter(local=local).select_related('trabajador').annotate(
+                salario_total=ExpressionWrapper(F('trabajador__salario_basico') ,
+                                                output_field=FloatField()),
+            ).values('trabajador__nombre').annotate(
+                salario_total_sum=Sum('salario_total')
+            )
+
+
+
+
 
             # Creamos la tupla con el queryset y los otros valores
             # ventas_por_fecha[fecha] = (ventas_fecha, total_importe_venta, total_importe_costo, ganancia_dia)
-            datos_por_fecha[fecha] = (venta_diaria, asistencias, (total_importe_ventas - total_importe_costo))
+            datos_por_fecha[fecha] = (venta_diaria, asistencias, ganancia)
             cant_trabajadores = Trabajador.objects.filter(local=local).count()
 
-            # enviar los datos recopilados al template
-            context = {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        context = {
                 'fechas': fechas,
                 'local': local,
                 'datos_por_fecha': datos_por_fecha,
@@ -258,7 +298,8 @@ class LocalAdmin(admin.ModelAdmin):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('precio', 'nombre')
+    list_display = ('nombre',  'categoria', 'precio',)
+    list_filter = ('categoria',)
 
 
 @admin.register(PrecioVenta)
@@ -295,7 +336,7 @@ class VentaDiariaAdmin(admin.ModelAdmin):
         return queryset.aggregate(total_importe_costo=Sum('importe_precio_costo'))['total_importe_costo']
 
 
-# @admin.register(Trabajador)
+@admin.register(Trabajador)
 class TrabajadorAdmin(admin.ModelAdmin):
     list_display = ['nombre', 'salario_basico', ]
     list_filter = ['local']

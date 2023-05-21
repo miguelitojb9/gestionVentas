@@ -52,6 +52,11 @@ class Asistencia(models.Model):
 
 class Producto(models.Model):
     nombre = models.CharField(max_length=255)
+    categoria = models.CharField(max_length=255, choices=[
+        ('1', 'Elaborados'),
+        ('2', 'No Elaborados'),
+
+    ], default='1')
     precio = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):

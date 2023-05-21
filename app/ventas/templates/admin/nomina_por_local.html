@@ -78,10 +78,10 @@
     <div class="container-fluid">
 
         <h1>Nomina {{ local.nombre }}</h1>
-        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{  local.id }}&trabajadores_salarios={{ trabajadores_salarios }}" class="btn btn-danger">
-            <input disabled hidden value="{{ local.id }}" id="local_id">
-            Descargar Excel
-        </a>
+{#        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{  local.id }}&trabajadores_salarios={{ trabajadores_salarios }}" class="btn btn-danger">#}
+{#            <input disabled hidden value="{{ local.id }}" id="local_id">#}
+{#            Descargar Excel#}
+{#        </a>#}
 
         <div class="row mt-5"></div>
         <ul class="nav nav-tabs mt-5">
@@ -152,7 +152,7 @@
                     <tr>
                         <td></td>
                         <td>{{ foo.trabajador__nombre }}</td>
-                        <td class="text-center">{{ foo.total_salario }}</td>
+                        <td class="text-center">{{ foo.salario_total_sum }}</td>
                     </tr>
                 {% endfor %}
 
