@@ -3,6 +3,8 @@
 {% load admin_list %}
 {% load crispy_forms_tags %}
 
+
+
 {% block extrastyle %}
     {{ block.super }}
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
@@ -71,17 +73,14 @@
     </style>
 
 {% endblock %}
-{% block title %}Locals{% endblock %}
-
 {% block content %}
-    <div id="loading-indicator"></div>
     <div class="container-fluid">
 
         <h1>Nomina {{ local.nombre }}</h1>
-{#        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{  local.id }}&trabajadores_salarios={{ trabajadores_salarios }}" class="btn btn-danger">#}
-{#            <input disabled hidden value="{{ local.id }}" id="local_id">#}
-{#            Descargar Excel#}
-{#        </a>#}
+        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{  local.id }}&trabajadores_salarios={{ trabajadores_salarios }}" class="btn btn-danger">
+            <input disabled hidden value="{{ local.id }}" id="local_id">
+            Descargar Excel
+        </a>
 
         <div class="row mt-5"></div>
         <ul class="nav nav-tabs mt-5">
@@ -95,7 +94,7 @@
             {% endfor %}
         </ul>
 
-        <div class="tab-content">
+        <div class="tab-content col-md-7">
             {% for fecha, data in datos_por_fecha.items %}
                 <input id="fecha_n" hidden value="{{ fecha }}">
 
@@ -109,7 +108,9 @@
                             <th class="text-center">Trabajador</th>
                             <th class="text-center">Salario Básico</th>
                             <th class="text-center">Salario devengado al dia</th>
-                            <th class="text-center">Ganancia por Ventas al dia</th>
+                            <th class="text-center">remuneracion del 6 y 2%</th>
+                            <th class="text-center">inporte elavorados</th>
+                            <th class="text-center">inporte no elavorados</th>
                             <th colspan="13"></th>
 
 
@@ -120,9 +121,10 @@
                             <tr data-asistencia-id="{{ asistencia.id }}">
                             <td class="text-center">{{ datos }}</td>
                             <td class="text-center">{{ datos.trabajador.salario_basico }}</td>
-                            <td class="text-center">{{ datos.salario_total }}</td>
-
+                            <td class="text-center">{{ datos.salario_devengado_diario }}</td>
                             <td class="text-center">{{ data.2 }}</td>
+                            <td class="text-center">{{ data.3 }}</td>
+                            <td class="text-center">{{ data.4 }}</td>
                         {% endfor %}
                         </tbody>
                         <tfoot>
@@ -136,39 +138,43 @@
 
                 </div>
             {% endfor %}
-
-            <table class="table">
+        </div>
+        <div class="row col-md-5">
+             <div class="col-md-6">
+                <table class="table">
                 <thead>
                 <tr>
                     <th></th>
                     <th>Trabajador</th>
-                    <th class="text-center">Salario a pagar</th>
-                    <th></th>
+                    <th >Salario a pagar</th>
+
                 </tr>
                 </thead>
                 <tbody>
                 {% for foo in trabajadores_salarios %}
-
                     <tr>
                         <td></td>
-                        <td>{{ foo.trabajador__nombre }}</td>
-                        <td class="text-center">{{ foo.salario_total_sum }}</td>
+                        <td>{{ foo.nombre }}</td>
+                        <td >{{ foo.total_devengado }}</td>
                     </tr>
                 {% endfor %}
 
                 </tbody>
             </table>
 
+           </div>
 
-            <table>
+            <div class="col-md-6">
+                 <table>
                 <thead class="table">
                 <tr>
-                    <th class="text-center" colspan="6">Cantidad de Trabajadores</th>
-                    <th class="text-center">{{ asistencias.1 }} / {{ cant_trabajadores }}</th>
+                    <th class="text-center" >Cantidad de Trabajadores</th>
+                    <th class="text-center">{{ cant_trabajadores }}</th>
                 </tr>
                 </thead>
 
             </table>
+            </div>
         </div>
     </div>
 

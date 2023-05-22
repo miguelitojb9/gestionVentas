@@ -1,25 +1,17 @@
 from django.contrib import admin
-from django.core.paginator import Paginator
-from django.db.models import Sum, Count
-from django.shortcuts import get_object_or_404, render, redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import path, reverse
 from django.utils.safestring import mark_safe
-
 from app.ventas.forms import VentaDiariaForm, AsistenciaDiariaForm, TrabajadorForm
-from app.ventas.models import Local, Producto, PrecioVenta, VentaDiaria, Trabajador, Nomina, Asistencia
+from app.ventas.models import Local, Producto, PrecioVenta, VentaDiaria, Trabajador, Asistencia
 from django.db.models import Max
 from django.utils import timezone
-from django.db import models
 from django.shortcuts import render
-
-from datetime import datetime, timedelta
-from django.db.models import ExpressionWrapper, Sum, F, FloatField
-from django.db.models.functions import Coalesce
+from datetime import datetime
 from decimal import Decimal
-from django.db.models import Case, When, ExpressionWrapper, F, FloatField, Sum, Subquery, OuterRef
-
-
-
+from django.db.models import ExpressionWrapper, F, FloatField, Sum
+from django.db.models.functions import RowNumber
+from django.db.models import Window, RowRange
 
 
 class VentaDiariaInline(admin.TabularInline):
@@ -200,82 +192,84 @@ class LocalAdmin(admin.ModelAdmin):
         # fechas = [hoy - timedelta(days=i) for i in range(7)]
         ventas = VentaDiaria.objects.filter(local=local)
         fechas = ventas.dates('fecha', 'day', order='DESC')
+        trabajadores = Trabajador.objects.filter(local=local)
 
         # recopilar los datos de ventas diarias, asistencias, y totales de importe para cada fecha y local
         datos_por_fecha = {}
         cant_trabajadores = {}
-        trabajadores_salarios = {}
+        trabajadores_salarios = []
         ganancia_fecha = {}
+        asistencias = {}
         for fecha in fechas:
             datos_por_fecha[fecha] = {}
             venta_diaria = VentaDiaria.objects.filter(fecha=fecha, local=local).select_related('local', 'producto')
             total_importe_ventas = venta_diaria.aggregate(total_ventas=
                                                           Sum(F('cantidad_venta') * F('precio_venta_producto')))[
                 'total_ventas']
-            importe_venta_elaborados = venta_diaria.filter(producto__categoria=1).aggregate(total_ventas=
-                                                          Sum(F('cantidad_venta') * F('precio_venta_producto')))[
+            importe_venta_elaborados = venta_diaria.filter(producto__categoria='1').aggregate(total_ventas=
+                                                                                              Sum(F(
+                                                                                                  'cantidad_venta') * F(
+                                                                                                  'precio_venta_producto')))[
                 'total_ventas']
 
-            importe_venta_no_elaborados = venta_diaria.filter(producto__categoria=2).aggregate(total_ventas=
-                                                          Sum(F('cantidad_venta') * F('precio_venta_producto')))[
+            importe_venta_no_elaborados = venta_diaria.filter(producto__categoria='2').aggregate(total_ventas=
+                                                                                                 Sum(F(
+                                                                                                     'cantidad_venta') * F(
+                                                                                                     'precio_venta_producto')))[
                 'total_ventas']
             ganancia = total_importe_ventas
 
-            cantidad_trabajadores_dia = Asistencia.objects.filter(fecha=fecha, local=local).select_related('trabajador').distinct().count()
+            cantidad_trabajadores_dia = Asistencia.objects.filter(fecha=fecha, local=local).select_related(
+                'trabajador').distinct().count()
 
             if ganancia > 15000:
                 ganancia -= 15000
 
-                ganancia = ganancia * Decimal(str('0.08'))
+                ganancia = (importe_venta_elaborados * Decimal(str('0.06'))) + (
+                            (ganancia - importe_venta_elaborados) * Decimal(str('0.02')))
                 ganancia /= cantidad_trabajadores_dia
 
             else:
                 ganancia = 0
             ganancia_fecha[fecha] = ganancia
 
-
             asistencias = Asistencia.objects.filter(fecha=fecha, local=local).select_related('trabajador').annotate(
-                salario_total=ExpressionWrapper(F('trabajador__salario_basico') + ganancia,
-                                                output_field=FloatField()),
-            )
-            trabajadores_salarios = Asistencia.objects.filter(local=local).select_related('trabajador').annotate(
-                salario_total=ExpressionWrapper(F('trabajador__salario_basico') ,
-                                                output_field=FloatField()),
-            ).values('trabajador__nombre').annotate(
-                salario_total_sum=Sum('salario_total')
+                salario_devengado_diario=ExpressionWrapper(F('trabajador__salario_basico') + ganancia,
+                                                           output_field=FloatField()),
             )
 
-
-
+            # trabajadores_salarios
 
 
             # Creamos la tupla con el queryset y los otros valores
             # ventas_por_fecha[fecha] = (ventas_fecha, total_importe_venta, total_importe_costo, ganancia_dia)
-            datos_por_fecha[fecha] = (venta_diaria, asistencias, ganancia)
+            datos_por_fecha[fecha] = (
+            venta_diaria, asistencias, ganancia, importe_venta_elaborados, importe_venta_no_elaborados)
             cant_trabajadores = Trabajador.objects.filter(local=local).count()
 
-
-
-
-
-
-
-
-
-
-
+        a= asistencias
+        # determinar remuneracion por trabajador
+        for trabajador in trabajadores:
+            remuneracion_total = Decimal(str('0'))
+            for _, d in datos_por_fecha.items():
+                for a in d[1].filter(trabajador=trabajador):
+                    remuneracion_total += Decimal(str(a.salario_devengado_diario))
+            trabajadores_salarios.append({
+                'nombre': trabajador.nombre,
+                'total_devengado': remuneracion_total
+            },)
 
 
 
 
 
         context = {
-                'fechas': fechas,
-                'local': local,
-                'datos_por_fecha': datos_por_fecha,
-                'cant_trabajadores': cant_trabajadores,
-                'trabajadores_salarios': trabajadores_salarios,
-            }
+            'fechas': fechas,
+            'local': local,
+            'datos_por_fecha': datos_por_fecha,
+            'cant_trabajadores': cant_trabajadores,
+            'trabajadores_salarios': trabajadores_salarios,
+        }
 
         return render(request, 'admin/nomina_por_local.html', context)
 
@@ -298,7 +292,7 @@ class LocalAdmin(admin.ModelAdmin):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('nombre',  'categoria', 'precio',)
+    list_display = ('nombre', 'categoria', 'precio',)
     list_filter = ('categoria',)
 
 

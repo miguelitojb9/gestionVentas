@@ -19,7 +19,7 @@ from datetime import datetime
 from django.shortcuts import get_object_or_404
 from django.db.models import ExpressionWrapper, Sum, F, FloatField
 from django.db.models.functions import Coalesce
-
+from decimal import Decimal
 
 class Home(LoginRequiredMixin,TemplateView):
     template_name = 'admin/ventas_por_local.html'
@@ -36,38 +36,74 @@ class DescargarDatosExcelNomina(LoginRequiredMixin,View):
         # fechas = [hoy - timedelta(days=i) for i in range(7)]
         ventas = VentaDiaria.objects.filter(local=local)
         fechas = ventas.dates('fecha', 'day', order='DESC')
-
         # recopilar los datos de ventas diarias, asistencias, y totales de importe para cada fecha y local
         datos_por_fecha = {}
+        cant_trabajadores = {}
+        trabajadores_salarios = []
+        ganancia_fecha = {}
+        asistencias = {}
+        trabajadores = Trabajador.objects.filter(local=local)
+
         for fecha in fechas:
             datos_por_fecha[fecha] = {}
             venta_diaria = VentaDiaria.objects.filter(fecha=fecha, local=local).select_related('local', 'producto')
             total_importe_ventas = venta_diaria.aggregate(total_ventas=
                                                           Sum(F('cantidad_venta') * F('precio_venta_producto')))[
                 'total_ventas']
-            total_importe_costo = venta_diaria.aggregate(total_costo=
-                                                         Sum(F('cantidad_venta') * F('precio_costo_producto')))[
-                'total_costo']
-            ganancia = (total_importe_ventas - total_importe_costo)
+            importe_venta_elaborados = venta_diaria.filter(producto__categoria='1').aggregate(total_ventas=
+                                                                                              Sum(F(
+                                                                                                  'cantidad_venta') * F(
+                                                                                                  'precio_venta_producto')))[
+                'total_ventas']
+
+            importe_venta_no_elaborados = venta_diaria.filter(producto__categoria='2').aggregate(total_ventas=
+                                                                                                 Sum(F(
+                                                                                                     'cantidad_venta') * F(
+                                                                                                     'precio_venta_producto')))[
+                'total_ventas']
+            ganancia = total_importe_ventas
+
+            cantidad_trabajadores_dia = Asistencia.objects.filter(fecha=fecha, local=local).select_related(
+                'trabajador').distinct().count()
+
             if ganancia > 15000:
-                ganancia = 0.06 * ganancia
+                ganancia -= 15000
+
+                ganancia = (importe_venta_elaborados * Decimal(str('0.06'))) + (
+                            (ganancia - importe_venta_elaborados) * Decimal(str('0.02')))
+                ganancia /= cantidad_trabajadores_dia
+
             else:
                 ganancia = 0
-            asistencias = Asistencia.objects.filter(fecha=fecha, local=local).select_related('trabajador').annotate(
-                salario_total=ExpressionWrapper(F('trabajador__salario_basico') + ganancia,
-                                                output_field=FloatField()),
+            ganancia_fecha[fecha] = ganancia
 
+            asistencias = Asistencia.objects.filter(fecha=fecha, local=local).select_related('trabajador').annotate(
+                salario_devengado_diario=ExpressionWrapper(F('trabajador__salario_basico') + ganancia,
+                                                           output_field=FloatField()),
             )
-            trabajadores_salarios = Asistencia.objects.filter(local=local).values('trabajador__nombre').annotate(
-                salario_total=ExpressionWrapper(F('trabajador__salario_basico') + ganancia, output_field=FloatField())
-            ).annotate(
-                total_salario=Coalesce(Sum('salario_total'), 0, output_field=FloatField())
-            ).values('trabajador__nombre', 'total_salario')
+
+            # trabajadores_salarios
+
 
             # Creamos la tupla con el queryset y los otros valores
             # ventas_por_fecha[fecha] = (ventas_fecha, total_importe_venta, total_importe_costo, ganancia_dia)
-            datos_por_fecha[fecha] = (venta_diaria, asistencias, (total_importe_ventas - total_importe_costo))
+            datos_por_fecha[fecha] = (
+            venta_diaria, asistencias, ganancia, importe_venta_elaborados, importe_venta_no_elaborados)
             cant_trabajadores = Trabajador.objects.filter(local=local).count()
+
+        a= asistencias
+        # determinar remuneracion por trabajador
+        for trabajador in trabajadores:
+            remuneracion_total = Decimal(str('0'))
+            for _, d in datos_por_fecha.items():
+                for a in d[1].filter(trabajador=trabajador):
+                    remuneracion_total += Decimal(str(a.salario_devengado_diario))
+            trabajadores_salarios.append({
+                'nombre': trabajador.nombre,
+                'total_devengado': remuneracion_total
+            },)
+
+
 
 
         filename = local.nombre
@@ -100,7 +136,7 @@ class DescargarDatosExcelNomina(LoginRequiredMixin,View):
                 sheet.cell(row=index + 2, column=1, value=row_data.fecha)
                 sheet.cell(row=index + 2, column=2, value=row_data.trabajador.nombre)
                 sheet.cell(row=index + 2, column=3, value=row_data.trabajador.salario_basico)
-                sheet.cell(row=index + 2, column=4, value=row_data.salario_total)
+                sheet.cell(row=index + 2, column=4, value=row_data.salario_devengado_diario)
                 sheet.cell(row=index + 2, column=5, value=data[2])
 
         # Crear una nueva hoja de Excel para el resumen
@@ -114,8 +150,8 @@ class DescargarDatosExcelNomina(LoginRequiredMixin,View):
         index = 0
         for row_data in trabajadores_salarios:
             index += 1
-            sheet.cell(row=index + 2, column=1, value=row_data['trabajador__nombre'])
-            sheet.cell(row=index + 2, column=2, value=row_data['total_salario'])
+            sheet.cell(row=index + 2, column=1, value=row_data['nombre'])
+            sheet.cell(row=index + 2, column=2, value=row_data['total_devengado'])
 
             # Eliminar la hoja de Excel por defecto
 
@@ -234,46 +270,46 @@ class DescargarExcelVentasDiariasView(LoginRequiredMixin,View):
 
         return response
 
-@login_required
-def importar_ventas(request):
-    if request.method == 'POST' and request.FILES['archivo']:
-        archivo = request.FILES['archivo']
-
-        try:
-            # Leer el contenido del archivo Excel y convertirlo en un DataFrame de pandas
-            df = pd.read_excel(archivo)
-
-            # Crear una instancia de VentaDiariaForm para validar los datos
-            form = VentaDiariaForm()
-
-            # Iterar sobre las filas del DataFrame y crear instancias de VentaDiaria
-            for i, fila in df.iterrows():
-                data = {
-                    'local': fila['Local'],
-                    'producto': fila['Producto'],
-                    'cantidad_entrada': fila['Cantidad Entrada'],
-                    'cantidad_merma': fila['Cantidad Merma'],
-                    'fecha': fila['Fecha'],
-                    'cantidad_venta': fila['Cantidad Venta'],
-                }
-                form = VentaDiariaForm(data)
-                if form.is_valid():
-                    form.save()
-                else:
-                    messages.warning(request, f'Error en la fila {i + 1}: {form.errors}')
-
-            messages.success(request, 'Las ventas se han importado correctamente.')
-            return redirect('admin:ventas_ventadiaria_changelist')
-        except Exception as e:
-            messages.error(request, f'Error al importar el archivo: {e}')
-    else:
-        form = VentaDiariaForm()
-
-    context = {
-        'form': form,
-    }
-    return render(request, 'ventas/importar_ventas.html', context)
-
+# @login_required
+# def importar_ventas(request):
+#     if request.method == 'POST' and request.FILES['archivo']:
+#         archivo = request.FILES['archivo']
+#
+#         try:
+#             # Leer el contenido del archivo Excel y convertirlo en un DataFrame de pandas
+#             df = pd.read_excel(archivo)
+#
+#             # Crear una instancia de VentaDiariaForm para validar los datos
+#             form = VentaDiariaForm()
+#
+#             # Iterar sobre las filas del DataFrame y crear instancias de VentaDiaria
+#             for i, fila in df.iterrows():
+#                 data = {
+#                     'local': fila['Local'],
+#                     'producto': fila['Producto'],
+#                     'cantidad_entrada': fila['Cantidad Entrada'],
+#                     'cantidad_merma': fila['Cantidad Merma'],
+#                     'fecha': fila['Fecha'],
+#                     'cantidad_venta': fila['Cantidad Venta'],
+#                 }
+#                 form = VentaDiariaForm(data)
+#                 if form.is_valid():
+#                     form.save()
+#                 else:
+#                     messages.warning(request, f'Error en la fila {i + 1}: {form.errors}')
+#
+#             messages.success(request, 'Las ventas se han importado correctamente.')
+#             return redirect('admin:ventas_ventadiaria_changelist')
+#         except Exception as e:
+#             messages.error(request, f'Error al importar el archivo: {e}')
+#     else:
+#         form = VentaDiariaForm()
+#
+#     context = {
+#         'form': form,
+#     }
+#     return render(request, 'ventas/importar_ventas.html', context)
+#
 
 @login_required
 @csrf_protect
