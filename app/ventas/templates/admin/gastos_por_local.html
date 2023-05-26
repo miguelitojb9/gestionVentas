@@ -1,0 +1,312 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% load admin_list %}
+
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="/admin/ventas/local/">Local</a>
+
+        {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% static 'libs/select2/dist/css/select2.min.css' %}">
+
+    <link rel="stylesheet" href="{% static 'libs/datatables-1.10.20/css/dataTables.bootstrap4.min.css' %}"/>
+    <link rel="stylesheet"
+          href="{% static 'libs/datatables-1.10.20/plugins/responsive-2.2.3/css/responsive.bootstrap4.min.css' %}"/>
+
+    <style>
+        .table tr {
+            background-color: white;
+        }
+
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+
+        .nav-tabs li a {
+            color: #555;
+            font-weight: bold;
+        }
+
+        .nav-tabs li.active a {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #337ab7;
+        }
+
+        .nav-tabs > li.active > a,
+        .nav-tabs > li.active > a:hover,
+        .nav-tabs > li.active > a:focus {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #337ab7;
+        }
+
+        #loading-indicator {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        }
+
+        #loading-indicator:before {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            margin: -30px 0 0 -30px;
+            border-radius: 50%;
+            border: 6px solid #fff;
+            border-color: #fff transparent #fff transparent;
+            animation: loading 1.2s linear infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+{% endblock %}
+
+
+
+{% block content %}
+
+    <div id="loading-indicator"></div>
+    <div class="container-fluid">
+
+        <h1>Gastos diarios para {{ local.nombre }}</h1>
+
+
+        <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#crear-venta-modal">
+            Registrar gasto diario
+        </a>
+
+        <!-- Modal -->
+        <div class="modal fade" id="crear-venta-modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">Registrar gasto diario</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">X</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        {% include 'admin/crear_venta_form.html' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs">
+
+            {% for fecha, ventas in ventas_por_fecha.items %}
+
+                <li {% if forloop.first %}class="active"{% endif %}>
+                    <a data-toggle="tab" href="#tab-{{ fecha|date:'Ymd' }}"
+                       id="{{ fecha|date:'d/m/Y' }}">{{ fecha|date:'d/m/Y' }}</a>
+                </li>
+
+            {% endfor %}
+        </ul>
+
+        <div class="tab-content">
+            {% for fecha, gastos in ventas_por_fecha.items %}
+                <input id="fecha_n" hidden value="{{ fecha }}">
+
+                <input id="{{ gastos.id }}" hidden value="{{ gastos.id }}">
+                <div id="tab-{{ fecha|date:'Ymd' }}" class="tab-pane {% if forloop.first %}active{% endif %}">
+
+
+                    <div class="row">
+                        {% if gastos.5 %}
+                        <div class="col-md-4">
+                            <table class="table" id="tab-{{ fecha|date:'y-m-d' }}">
+                                <thead>
+                                <tr>
+                                    <th class="text-center">Otros</th>
+                                </tr>
+                                <tr>
+                                    <th class="text-center">#</th>
+                                    <th class="text-center">Monto</th>
+                                    <th class="text-center">Descripción</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for gasto in gastos.5 %}
+                                    <tr data-id="{{ gasto.id }}">
+                                        <td class="text-center">{{ gasto.id }}</td>
+                                        <td class="text-center">{{ gasto.monto }}</td>
+                                        <td class="text-center">{{ gasto.descripcion }}</td>
+                                        <td class="text-center">
+                                            <a class="btn btn-danger btn-sm eliminar-btn">
+                                                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                <td colspan="13"></td>
+                                </tbody>
+                                <tfoot>
+                                <tr>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">{{ gastos.6|default:0.00 }}  </th>
+                                    <th colspan="12"></th>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% endif %}
+                    {% if gastos.1 %}
+                        <div class="col-md-4">
+                            <table class="table" id="tab-{{ fecha|date:'y-m-d' }}">
+                                <thead>
+                                <tr>
+                                    <th class="text-center">Electricidad</th>
+                                </tr>
+                                <tr>
+                                    <th class="text-center">#</th>
+                                    <th class="text-center">Monto</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for gasto in gastos.1 %}
+                                    <tr data-id="{{ gasto.id }}">
+                                        <td class="text-center">{{ gasto.id }}</td>
+                                        <td class="text-center">{{ gasto.monto }}</td>
+                                        <td class="text-center">
+
+                                            <a class="btn btn-danger btn-sm eliminar-btn">
+                                                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                <td colspan="13"></td>
+                                </tbody>
+                                <tfoot>
+                                <tr>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">{{ gastos.2|default:0.00 }}  </th>
+                                    <th colspan="12"></th>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% endif %}
+                    {% if gastos.3 %}
+                        <div class="col-md-4">
+                            <table class="table" id="tab-{{ fecha|date:'y-m-d' }}">
+                                <thead>
+                                <tr>
+                                    <th class="text-center">Arrendamiento</th>
+                                </tr>
+                                <tr>
+                                    <th class="text-center">#</th>
+                                    <th class="text-center">Monto</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for gasto in gastos.3 %}
+                                    <tr data-id="{{ gasto.id }}">
+                                        <td class="text-center">{{ gasto.id }}</td>
+                                        <td class="text-center">{{ gasto.monto }}</td>
+                                        <td class="text-center">
+
+                                            <a class="btn btn-danger btn-sm eliminar-btn">
+                                                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                <td colspan="13"></td>
+                                </tbody>
+                                <tfoot>
+                                <tr>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">{{ gastos.4|default:0.00 }}  </th>
+                                    <th colspan="12"></th>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% endif %}
+                    <div class="col-md-9">
+                        <div class="col-md-3">
+                            <table class="table col-md-2">
+                            <thead>
+                            <th class="text-center" colspan="6">Total diario</th>
+                            <th class="text-center">{{ gastos.7 }}  </th>
+                            </thead>
+                        </table>
+                        </div>
+
+                    </div>
+                    </div>
+                </div>
+
+
+
+
+
+            {% endfor %}
+            <div class="col-md-4">
+
+
+                <table>
+                    <thead class="table">
+                    <tr>
+
+                        <th class="text-center" colspan="6">Gastos Totales</th>
+                        <th class="text-center">{{ gastos_total }}</th>
+                    </tr>
+                    </thead>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+    {% block extrajs %}
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+        <!-- -->
+        <link href="https://cdn.datatables.net/v/dt/dt-1.13.4/datatables.min.css" rel="stylesheet"/>
+
+        <script src="https://cdn.datatables.net/v/dt/dt-1.13.4/datatables.min.js"></script>
+        <script src="{% static 'app/gastos/gastos.js' %}"></script>
+
+
+        <!-- Cargar archivos de JavaScript y CSS de Select2 -->
+
+    {% endblock %}
+
+{% endblock %}
+
+

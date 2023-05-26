@@ -3,7 +3,13 @@
 {% load admin_list %}
 
 
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="/admin/ventas/local/">Local</a>
 
+        {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+{% endblock %}
 
 {% block extrastyle %}
     {{ block.super }}
@@ -114,10 +120,10 @@
                 </div>
             </div>
         </div>
-        <a class="btn btn-warning"
-           id="boton-eliminar-ventas">
-            Eliminar Todas las Ventas
-        </a>
+        {#        <a class="btn btn-warning"#}
+        {#           id="boton-eliminar-ventas">#}
+        {#            Eliminar Todas las Ventas#}
+        {#        </a>#}
         <ul class="nav nav-tabs">
 
             {% for fecha, ventas in ventas_por_fecha.items %}
@@ -136,6 +142,7 @@
 
                 <input id="{{ ventas.id }}" hidden value="{{ ventas.id }}">
                 <div id="tab-{{ fecha|date:'Ymd' }}" class="tab-pane {% if forloop.first %}active{% endif %}">
+
                     <table class="table" id="tab-{{ fecha|date:'y-m-d' }}">
                         <thead>
                         <tr>
@@ -153,7 +160,25 @@
                         </tr>
                         </thead>
                         <tbody>
-                        {% for venta in ventas.0 %}
+                         <div class="paginator">
+                      {% if ventas.0.has_previous %}
+                            <a href="?page={{ ventas.0.previous_page_number }}">Anterior</a>
+                        {% endif %}
+
+                        {% for num in ventas.0.paginator.page_range %}
+                            {% if ventas.0.number == num %}
+                               <a href=""> {{ num }}</a>
+                            {% elif num > ventas.0.number|add:'-3' and num < ventas.0.number|add:'3' %}
+                                <a href="?page={{ num }}">{{ num }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if ventas.0.has_next %}
+                            <a href="?page={{ ventas.0.next_page_number }}">Siguiente</a>
+                        {% endif %}
+                </div>
+                     <div class="results-container">
+                            {% for venta in ventas.0 %}
                             <tr data-venta-id="{{ venta.id }}">
                                 <td class="text-center">{{ venta.id }}</td>
                                 <td class="text-center">{{ venta.producto }}</td>
@@ -179,6 +204,8 @@
                                 </td>
                             </tr>
                         {% endfor %}
+                     </div>
+
                         <td colspan="13"></td>
                         </tbody>
                         <tfoot>
@@ -196,7 +223,7 @@
                             <th class="text-center">Ganancia bruta</th>
                             <th class="text-center">{{ ventas.3|default:0.00 }}</th>
                             <th colspan="5"></th>
-                            <th class="text-center">Precio de costo</th>
+                            <th class="text-center">Importe de ventas</th>
                             <th colspan="1"></th>
                             <th class="text-center">Importe de costo</th>
                         </tr>
@@ -205,6 +232,23 @@
                         </tr>
                         </tfoot>
                     </table>
+                  <div class="paginator">
+                      {% if ventas.0.has_previous %}
+                            <a href="?page={{ ventas.0.previous_page_number }}">Anterior</a>
+                        {% endif %}
+
+                        {% for num in ventas.0.paginator.page_range %}
+                            {% if ventas.0.number == num %}
+                               <a href=""> {{ num }}</a>
+                            {% elif num > ventas.0.number|add:'-3' and num < ventas.0.number|add:'3' %}
+                                <a href="?page={{ num }}">{{ num }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if ventas.0.has_next %}
+                            <a href="?page={{ ventas.0.next_page_number }}">Siguiente</a>
+                        {% endif %}
+                </div>
                     <table>
                         <thead class="table">
                         <tr>

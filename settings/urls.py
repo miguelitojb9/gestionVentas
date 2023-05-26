@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 from app.ventas.admin import LocalAdmin
 from app.ventas.views import buscar_productos, eliminar_venta, \
     actualizar_venta_diaria, eliminar_ventas, eliminar_asistencia, actualizar_trabajador, eliminar_trabajador, \
-    DescargarExcelVentasDiariasView, DescargarDatosExcelNomina
+    DescargarExcelVentasDiariasView, DescargarDatosExcelNomina, eliminar_gasto
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -35,6 +35,7 @@ urlpatterns = [
     path('actualizar_venta_diaria/', actualizar_venta_diaria, name='actualizar_venta_diaria'),
 
     path('eliminar_venta/', eliminar_venta, name='eliminar_venta'),
+    path('eliminar_gasto/', eliminar_gasto, name='eliminar_gasto'),
 
     path('eliminar_ventas/', eliminar_ventas, name='eliminar_ventas'),
 

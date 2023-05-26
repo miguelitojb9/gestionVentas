@@ -3,6 +3,26 @@ $(function () {
     var fecha = $('#fecha_n').val()
 
 
+    $('.paginator a').on('click', function () {
+
+
+
+        e.preventDefault();
+        var url = $(this).attr('href');
+        $.ajax({
+            url: url,
+            success: function (data) {
+                $(this).prop('disabled', true);
+                $('#results-container').html(data);
+                $('.table-row').removeClass('active');
+                $('.table-row[data-id="tab-' + data.fecha + '"]').addClass('active');
+                history.pushState(null, '', url);
+            }
+        });
+
+    })
+
+
     $("#boton-eliminar-ventas").on('click', function () {
         // Obtener el token CSRF del cookie
         var csrftoken = getCookie('csrftoken');

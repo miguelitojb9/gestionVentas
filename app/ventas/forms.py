@@ -1,6 +1,7 @@
 from django import forms
-from app.ventas.models import VentaDiaria, Asistencia, Trabajador, Local
+from app.ventas.models import VentaDiaria, Asistencia, Trabajador, Local, GastosDiario
 from django.core.exceptions import ValidationError
+
 
 class VentaDiariaForm(forms.ModelForm):
     class Meta:
@@ -13,6 +14,18 @@ class VentaDiariaForm(forms.ModelForm):
             'cantidad': forms.NumberInput(attrs={'min': 1}),
             'precio_venta': forms.NumberInput(attrs={'min': 0}),
             'precio_costo': forms.NumberInput(attrs={'min': 0}),
+        }
+
+
+class GastosDiariaForm(forms.ModelForm):
+    class Meta:
+        model = GastosDiario
+        fields = ('local', 'fecha', 'monto', 'concepto', 'descripcion',)
+
+        widgets = {
+            'fecha': forms.DateInput(attrs={'type': 'date'}),
+            'concepto': forms.Select(attrs={'class': 'form-control'}),
+
         }
 
 

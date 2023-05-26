@@ -3,7 +3,13 @@
 {% load admin_list %}
 {% load crispy_forms_tags %}
 
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="/admin/ventas/local/">Local</a>
 
+        {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+{% endblock %}
 
 {% block extrastyle %}
     {{ block.super }}
@@ -77,7 +83,8 @@
     <div class="container-fluid">
 
         <h1>Nomina {{ local.nombre }}</h1>
-        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{  local.id }}&trabajadores_salarios={{ trabajadores_salarios }}" class="btn btn-danger">
+        <a href="{% url 'descargar_datos_excel_nomina' %}?local_id={{ local.id }}&trabajadores_salarios={{ trabajadores_salarios }}"
+           class="btn btn-danger">
             <input disabled hidden value="{{ local.id }}" id="local_id">
             Descargar Excel
         </a>
@@ -120,10 +127,10 @@
                         {% for datos in data.1 %}
                             <tr data-asistencia-id="{{ asistencia.id }}">
                             <td class="text-center">{{ datos }}</td>
-                            <td class="text-center">{{ datos.trabajador.salario_basico }}</td>
-                            <td class="text-center">{{ datos.salario_devengado_diario }}</td>
-                            <td class="text-center">{{ data.2 }}</td>
-                            <td class="text-center">{{ data.3 }}</td>
+                            <td class="text-center">{{ datos.trabajador.salario_basico|floatformat:2 }}</td>
+                            <td class="text-center">{{ datos.salario_devengado_diario|floatformat:2 }}</td>
+                            <td class="text-center">{{ data.2 |floatformat:2 }}</td>
+                            <td class="text-center">{{ data.3 |default:0|floatformat:2 }}</td>
                             <td class="text-center">{{ data.4 }}</td>
                         {% endfor %}
                         </tbody>
@@ -140,40 +147,79 @@
             {% endfor %}
         </div>
         <div class="row col-md-5">
-             <div class="col-md-6">
+            <div class="col-md-6">
                 <table class="table">
-                <thead>
-                <tr>
-                    <th></th>
-                    <th>Trabajador</th>
-                    <th >Salario a pagar</th>
-
-                </tr>
-                </thead>
-                <tbody>
-                {% for foo in trabajadores_salarios %}
+                    <thead>
                     <tr>
-                        <td></td>
-                        <td>{{ foo.nombre }}</td>
-                        <td >{{ foo.total_devengado }}</td>
+                        <th></th>
+                        <th>Trabajador</th>
+                        <th>Salario a pagar</th>
+
                     </tr>
-                {% endfor %}
+                    </thead>
+                    <tbody>
+                    {% for foo in trabajadores_salarios %}
+                        <tr>
+                            <td></td>
+                            <td>{{ foo.nombre }}</td>
+                            <td>{{ foo.total_devengado|floatformat:2 }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr>
+                        <th></th>
+                        <th>Cantidad</th>
+                        <th>{{ cant_trabajadores }}</th>
+                    </tr>
 
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
 
-           </div>
+            </div>
 
             <div class="col-md-6">
-                 <table>
-                <thead class="table">
-                <tr>
-                    <th class="text-center" >Cantidad de Trabajadores</th>
-                    <th class="text-center">{{ cant_trabajadores }}</th>
-                </tr>
-                </thead>
+                <table>
+                    <thead class="table">
+                    <tr>
+                        <th>Ganacias Bruta</th>
+                        <th>{{ ganacia_total|default:0|floatformat:2 }}</th>
 
-            </table>
+                    </tr>
+
+                    <tr>
+                        <th>Salario Total de Trabajadores</th>
+                        <th>-{{ salario_total_trabajadores|default:0|floatformat:2 }}</th>
+
+                    </tr>
+                    <tr>
+                        <th>Gasto Total</th>
+                        <th>-{{ gastos_total|default:0|floatformat:2 }}</th>
+
+                    </tr>
+
+
+                    <tr>
+                        <th>Salario Administradores</th>
+                        <th>-{{ admin_salario|default:0|floatformat:2 }}</th>
+
+                    </tr>
+                    <tr>
+                        <th>Ganancia Neta</th>
+                        <th>{{ ganancia_neta|default:0|floatformat:2 }}</th>
+
+                    </tr>
+                    </thead>
+
+                </table>
+                <table class="table">
+                    <thead>
+
+
+                    </thead>
+                    <tbody>
+                    <td></td>
+
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

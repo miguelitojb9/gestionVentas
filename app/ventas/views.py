@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import ExpressionWrapper
 from django.http import HttpResponse
 from django.views.generic import View, TemplateView
-from app.ventas.models import Producto, Local, Asistencia, Trabajador
+from app.ventas.models import Producto, Local, Asistencia, Trabajador, GastosDiario
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from openpyxl.styles import Font, PatternFill, Border, Side, numbers
 import pandas as pd
@@ -322,6 +322,18 @@ def eliminar_venta(request):
             venta.delete()
             return JsonResponse({'mensaje': 'Venta eliminada exitosamente.'})
         return JsonResponse({'error': 'Venta no eliminada exitosamente.'})
+
+@login_required
+@csrf_protect
+@ensure_csrf_cookie
+def eliminar_gasto(request):
+    if request.method == 'POST':
+        gasto_id = request.POST.get('id')
+        gasto = GastosDiario.objects.get(id=gasto_id)
+        if gasto:
+            gasto.delete()
+            return JsonResponse({'mensaje': 'Gasto  eliminada exitosamente.'})
+        return JsonResponse({'error': 'Gasto  no eliminada exitosamente.'})
 
 
 

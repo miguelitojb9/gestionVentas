@@ -2,7 +2,13 @@
 {% load static %}
 {% load admin_list %}
 {% load crispy_forms_tags %}
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="/admin/ventas/local/">Local</a>
 
+        {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+{% endblock %}
 {% block extrastyle %}
     {{ block.super }}
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
