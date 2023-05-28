@@ -7,7 +7,6 @@ from django.views.generic import View, TemplateView
 from app.ventas.models import Producto, Local, Asistencia, Trabajador, GastosDiario
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from openpyxl.styles import Font, PatternFill, Border, Side, numbers
-import pandas as pd
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from app.ventas.forms import VentaDiariaForm
